@@ -2,7 +2,7 @@
   "name": "classwork",
   "version": "1.0.0",
   "description": "",
-  "main": "02-chart.js",
+  "main": "stream.js",
   "scripts": {
     "test": "jest",
     "start": "parcel src/index.html",
