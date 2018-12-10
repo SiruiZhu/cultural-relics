@@ -28,14 +28,19 @@ import * as topojson from 'topojson'
   //         '#f03b20',
   //         '#983530'
   //   ])
-
-  var colorScale = d3.scaleOrdinal()
-  .range(d3.schemeBrBG)
+  // var colorScale = d3.scaleOrdinal()
+  // .range(d3.schemeBrBG)
 
   var radiusScale = d3
     .scaleSqrt()
     .domain([10, 300])
     .range([1, 3.5])
+
+  var div = d3
+    .select('body')
+    .append('div')
+    .attr('class', 'tooltip')
+    .style('opacity', 0)
 
   let xPositionScale = d3.scaleLinear().domain([0, 300]).range([0, width])
   let yPositionScale = d3.scaleBand().range([0, height]).padding(0.2)
@@ -54,7 +59,8 @@ import * as topojson from 'topojson'
   var nested_region = d3.nest()
      .key(d => d.region)
      .entries(datapoints_number)
-  // console.log('nested data look like', nested)
+  // console.log('nested region data look like', nested_region)
+
   // MAP PART
   var mapGroup = svg.append('g').attr('id', 'map').attr('transform', 'translate(-80, 0)')
   var nested_era = d3.nest()
@@ -66,13 +72,9 @@ import * as topojson from 'topojson'
   let mc = topojson.feature(json, json.objects.MAC_adm1)
   let taiwan = topojson.feature(json, json.objects.TWN_adm1)
 
-  console.log(mainland.features)
+  // console.log(mainland.features)
 
   projection.fitSize([width, height], mainland)
-  // projection.scale(projection.scale() * 0.8)
-  // projection.fitSize([width, height], mc)
-  // projection.fitSize([width, height], taiwan)
-  // projection.fitSize([width, height], hk)
 
   var north = ['Beijing', 'Tianjin', 'Hebei','Shanxi', 'Nei Mongol']
   var northEast = ['Liaoning', 'Jilin', 'Heilongjiang']
@@ -88,6 +90,9 @@ import * as topojson from 'topojson'
     .enter()
     .append('path')
     .attr('class', 'mainland')
+    .attr('id', function(d, i) {
+      return 'province' + i
+    })
     .attr('d', path)
     .attr('fill', d=> {
       // console.log(d)
@@ -108,15 +113,54 @@ import * as topojson from 'topojson'
     .attr('opacity', 0.9)
     .attr('stroke', 'white')
     .attr('stroke-width', 0.1)
-    .on('mouseenter', function(d) {
-      d3.select(this).attr('stroke', 'white').attr('stroke-width', 2)
-      // console.log(d)
+    .on('mousemove', function(d) {
+      var provinceName = d.properties['NAME_1']
+      div
+        .html(provinceName)
+        .style('left', d3.event.pageX + 'px')
+        .style('top', d3.event.pageY - 28 + 'px')
+        .style('display', 'block')
     })
-    .on('mouseleave', function(d) {
-      d3.select(this).attr('stroke', 'none')
+    .on('mouseover', function(d, i) {
+       var provinceName = d.properties['NAME_1']
+      div
+        .transition()
+        .duration(200)
+        .attr('stroke', 'white')
+        .attr('stroke-width', 2)
+        .style('opacity', 1) 
+      div
+        .html(provinceName)
+        .style('left', d3.event.pageX + 'px')
+        .style('top', d3.event.pageY - 28 + 'px')
+      d3.select('#province' + i)
+        .transition()  
+        .attr('opacity', 1)
+      d3.selectAll('.mainland').attr('opacity', '0.3')
     })
-
-
+    .on('mouseout', function(d, i) {
+      div
+        .transition()
+        .duration(200)
+        .style('opacity', 0)
+      d3.selectAll('.mainland').attr('opacity', '1')
+        .attr('fill', d=> {
+          // console.log(d)
+          if (north.indexOf(d.properties.NAME_1) !== -1 ) {
+            return '#ffffb2'
+          } else if (northEast.indexOf(d.properties.NAME_1) !== -1 ) {
+            return '#fed976'
+          } else if (east.indexOf(d.properties.NAME_1) !== -1 ) {
+            return '#feb24c'
+          } else if (southCentral.indexOf(d.properties.NAME_1) !== -1 ) {
+            return '#fd8d3c'
+          } else if (southWest.indexOf(d.properties.NAME_1) !== -1 ) {
+            return '#f03b20'
+          } else if (northWest.indexOf(d.properties.NAME_1) !== -1 ) {
+            return '#983530'
+          }
+        })
+    })
   mapGroup
     .append('g')
     .selectAll('.taiwan')
@@ -150,6 +194,7 @@ import * as topojson from 'topojson'
     .attr('fill', '#E0E0E0')
 
   mapGroup
+    .append('g')
     .selectAll('.province-label')
     .data(mainland.features)
     .enter()
@@ -167,7 +212,9 @@ import * as topojson from 'topojson'
     .attr('font-size', 10)
     .attr('opacity', 0)
 
+//draw circle on the map
   mapGroup
+    .append('g')
     .selectAll('.relics')
     .data(datapoints_points)
     .enter()
@@ -175,29 +222,23 @@ import * as topojson from 'topojson'
     .attr('class', 'relics')
     .attr('r', 2) 
     .attr('opacity', 0.6)
-    .attr('fill', d => colorScale(d.era_replace))
+    .attr('fill', '#4f2925')
     .attr('transform', d => {
       let coords = projection([d.longitude, d.latitude])
       return `translate(${coords})`
     })   
 
-  // var eras = nested_era.map(d=> d.key)
-  // console.log(eras)
-
-  // colorScale.domain(eras)
-  // console.log('nested data look like', nested)
-
-  // BAR PART
-  // GROUP BY province and get the relics number for each province
+// BAR PART
+// GROUP BY province and get the relics number for each province
   var nested_province = d3.nest()
     .key(d => d.province_en)
     .rollup(values => d3.sum(values, d => d.number))
     .entries(datapoints_number)
 
-  console.log('nested_province', nested_province)
+  // console.log('nested_province', nested_province)
 
   var provinces = nested_province.map(d => d.key)
-  console.log('provinces', provinces)
+  // console.log('provinces', provinces)
 
   yPositionScale.domain(provinces)
 
@@ -217,13 +258,11 @@ import * as topojson from 'topojson'
       .attr('y', d => yPositionScale(d.key))
       .attr('width', 0)
       .attr('height', yPositionScale.bandwidth())
-      .attr('fill', 'red')
+      .attr('fill', '#c04033')
 
 
-  d3.select('#draw-bars-1').on('click', () => {
-    console.log("I was clicked")
-    
-      // Move the powerplants to where the bars start
+  d3.select('#show-province').on('click', () => {
+    // Move the powerplants to where the bars start
       svg.selectAll('.relics')
         .transition()
         .duration(1000)
@@ -252,63 +291,62 @@ import * as topojson from 'topojson'
         .transition()
         .duration(1500)
         .style('opacity', '0')
+        .style('pointer-events', 'none')
 
   // LEGEND
-    let labelGroup = svg.append('g').attr('transform', 'translate(200, 200)').attr('id', 'legend')
-
+    var labelGroup = svg.append('g').attr('id', 'region-legend')
+    
     labelGroup
-      .selectAll('.label-circle')
+      .selectAll('.region-legend')
       .data(nested_region)
       .enter()
       .append('circle')
       .attr('transform', (d, i) => `translate(0,${i * 20})`)
-      .attr('class', 'legend-entry')
+      .attr('class', 'region-legend')
       .each(function(d) {
         let g = d3.select(this)
 
-        g.append('circle')
-          .attr('r', 5)
-          .attr('cx', 0)
-          .attr('cy', 0)
-          .attr('fill', colorScale(d.key))
-
         g.append('text')
           .text(d.key)
-          .attr('dx', 10)
+          .attr('x', 15)
+          .attr('y', 5)
+          .attr('dx', 17)
+          .attr('font-size', 10)
+          .attr('fill', 'black')
           .attr('alignment-baseline', 'middle')
 
         g.append('rect')
-          .attr('x', -8)
-          .attr('y', -9)
-          .attr('width', 400)
-          .attr('height', 18)
-          .attr('fill', '#fcfcfc')
-          .lower()
+          .attr('x', 15)
+          .attr('y', 5)
+          .attr('width', 6)
+          .attr('height', 0)
+          .attr('fill', 'black')
     })
-
   })
-  d3.selectAll('#draw-bars-2').on('click', ()=> {
-    console.log("I was clicked")
+
+  //BUTTON PART
+  d3.selectAll('#draw-map').on('click', ()=> {
       barsGroup
         .transition()
-        .duration(1500)
+        .duration(300)
         .style('opacity', '0') 
 
       mapGroup
         .transition()
-        .duration(1500)
-        .style('opacity', '0.8')   
+        .style('opacity', '0.9')  
+        .style('pointer-events', 'auto') 
 
       svg
         .selectAll('.relics')
         .transition()
-        .duration(1000)
+        .duration(300)
         .attr('transform', d => {
             let coords = projection([d.longitude, d.latitude])
             return `translate(${coords})`
         })  
         .transition()
         .attr('opacity', 1) 
+
 
       svg
         .selectAll('.province-label')
@@ -319,8 +357,7 @@ import * as topojson from 'topojson'
 
 
 
-  d3.selectAll('#draw-map').on('click', ()=> {
-    console.log("I was clicked")
+  d3.selectAll('#draw-map-region').on('click', ()=> {
       barsGroup
         .transition()
         .duration(1500)
@@ -330,6 +367,7 @@ import * as topojson from 'topojson'
         .transition()
         .duration(1500)
         .style('opacity', '1')
+        .style('pointer-events', 'none')
 
       svg
         .selectAll('.relics')
@@ -346,6 +384,7 @@ import * as topojson from 'topojson'
         .transition()
         .duration(200)
         .attr('opacity', 1) 
+
 
 
   })
@@ -367,7 +406,6 @@ import * as topojson from 'topojson'
 }
 
   function topFunction() {
-        // console.log('GOT CLICKED')
           document.body.scrollTop = 0;
           document.documentElement.scrollTop = 0;
           location.reload()

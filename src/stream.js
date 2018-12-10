@@ -18,7 +18,6 @@ const xPositionScale = d3
   .domain([-1900, 2018])
   .range([0, width])
 
-// const colorScale = d3.scaleOrdinal(d3.schemeCategory10)
 const colorScale = d3
   .scaleOrdinal()
   .range([
@@ -177,6 +176,8 @@ function ready([datapoints, datapoints_all]) {
       d3.selectAll('.relics').attr('opacity', '1').attr('fill', d => colorScale(d.key))
     })
 
+//filter datapoints_all to only the first batch and architecture.
+  var datapoints_filtered = datapoints_all.filter(d=> d.batch === '第一批'&& d.classification === '古建筑')  
 
 //stack for dotplot
   var nested_year = d3
@@ -184,57 +185,43 @@ function ready([datapoints, datapoints_all]) {
     .key(function(d) {
       return +d.era_year
     })
-    .entries(datapoints_all)
+    .entries(datapoints_filtered)
 
   console.log('Datapoints_all nested year look like', nested_year)
 
-  var nestedYear = nested_year.map(d => +d.key)
-
-  console.log('nestedYear look like', nestedYear)
-
-  var stack_dots = d3.stack()
-    .keys(keys)
-    .order(d3.stackOrderDescending)
-
-    // svg
-    //    .selectAll('.circles')
-    //    .data(datapoints_all)
-    //    .enter()
-    //    .append('circle')
-    //    .attr('class', d=> {
-    //     // console.log(d.name_en.replace(/\s+/g, '-').toLowerCase())
-    //     return d.name_en.replace(' ', '-').toLowerCase()
-    //    })
-    //    .classed('circles', true)
-    //    .classed('firstbatch', d => {
-    //     // console.log(d)
-    //     if (d.batch === '第一批' && d.classification === '古建筑') {
-    //       return true
-    //     }
-    //   })     
-    //    .attr('r', 3)
-    //    .attr('cx', d=> xPositionScale(d.era_year))
-    //    .attr('cy', 0)
-    //    .attr('fill', 'red')  
-    //    .style('visibility', 'hidden')
-
     svg
-       .selectAll('.circles')
+       .selectAll('.circles-group')
        .data(nested_year)
        .enter()
-       .append('circle')
-       .attr('r', 3)
-       .attr('cx', d=> xPositionScale(d.key))
-       // .attr('cy', height/2)
-       .attr('cy', d => {
-        console.log(d)
-        var i = d3.range(20)
-        console.log(i)
-        return height/2 - i * 3 
-      })
-       .attr('fill', 'red')  
-    //    .style('visibility', 'hidden')
-
+       .append('g')
+       .attr('class', 'circles-group')
+       .each(function(d) {
+         var g = d3.select(this)
+         var datapoints = d.values  
+         // console.log(datapoints) 
+          g
+          .selectAll('.circles')
+          .data(datapoints)   
+          .enter()
+          .append('circle') 
+          .attr('class', d=> {
+            console.log(d.name_en.replace(' ', '-').toLowerCase())
+            return d.name_en.replace(' ', '-').toLowerCase()
+            })
+          .classed('circles', true)
+          .classed('firstbatch', d => {
+              if (d.batch === '第一批' && d.classification === '古建筑') {
+                  return true
+                }
+            })     
+         .attr('r', 4)
+         .attr('cx', xPositionScale(d.key))
+         .attr('cy', (d,i) => {
+           return (height/2 - i * 8)
+         })
+         .attr('fill', '#942121') 
+       }) 
+       .style('visibility', 'hidden')
 
     svg
        .append('circle')
@@ -244,26 +231,6 @@ function ready([datapoints, datapoints_all]) {
        .attr('cy', 60)
        .attr('fill', 'red')
        .style('visibility', 'hidden')
-
-  // Add in your axes
-      // var tickLabels = [
-      //     'Xia dynasty',
-      //     'Shang dynasty',
-      //     'Zhou dynasty',
-      //     'Qin dynasty',
-      //     'Han dynasty',
-      //     'Three Kingdoms',
-      //     'Jin dynasty',
-      //     'Southern and Northern dynasties',
-      //     'Sui dynasty',
-      //     'Tang dynasty',
-      //     'Five Dynasties and Ten Kingdoms',
-      //     'Song dynasty',
-      //     'Yuan dynasty',
-      //     'Ming dynasty',
-      //     'Qing dynasty',
-      //     'Republic of China',  
-      //     'Chinese People‘s Republic']
 
 // legend part
       let legend = svg.append('g').attr('transform', 'translate(10, 0)')
@@ -368,27 +335,34 @@ function ready([datapoints, datapoints_all]) {
   d3.select('#all-line').on('stepin', ()=> {
     svg.selectAll('.forbidden-city').style('visibility', 'hidden').transition()
        .attr('cy', 0)
+    svg.selectAll('.summer-palace').style('visibility', 'hidden').transition()
+       .attr('cy', 0)
     svg.selectAll('.firstbatch').style('visibility', 'hidden').transition()
        .attr('cy', 0)
     svg.selectAll('.relics').style('pointer-events', 'auto')
     svg.selectAll('.image').style('visibility', 'hidden')
+
   })
 
   d3.select('#first-batch').on('stepin', ()=> {
-    console.log('I am step into first batch')
+    // console.log('I am step into first batch')
     svg.selectAll('.relics').style('pointer-events', 'none')
-    svg.selectAll('.firstbatch')
-       .style('visibility', 'visible')
-       .transition()
-       .duration(d=> Math.random() * 1000)
-       .attr('opacity', 1)
-       .attr('cy', height/2)
-
-    svg.selectAll('.forbidden-city')
-       .style('visibility', 'hidden')
-       .transition()
-       .attr('cy', 0) 
-
+    svg.selectAll('.circles-group')
+       .each(function(d) {
+         var g = d3.select(this)
+         // console.log(datapoints) 
+          g
+          .selectAll('.circles')
+          .style('visibility', 'visible')
+          .transition()
+          .duration(d=> Math.random() * 1000)
+          .attr('opacity', 1)
+          .attr('r',4)
+          .attr('cy', (d,i) => {
+           return (height/2 - i * 8)
+         })
+          .attr('fill', '#942121')        
+       }) 
 
     svg.selectAll('.circles')
        .on('mouseover', function (d) {
@@ -412,10 +386,10 @@ function ready([datapoints, datapoints_all]) {
        .attr('opacity', 0)
        .attr('cy', 0)
        .transition()  
-  svg.selectAll('.yuetan')
-       .attr('opacity', 0)
-       .attr('cy', 0)
-       .transition()       
+  // svg.selectAll('.summer-palace')
+  //      .attr('opacity', 0)
+  //      .attr('cy', 0)
+  //      .transition()       
 
     svg.selectAll('.forbidden-city')
        .style('visibility', 'visible')
@@ -423,7 +397,7 @@ function ready([datapoints, datapoints_all]) {
        .transition()
        .attr('opacity', 1)
        .attr('cy', height/2)
-       .attr('fill', 'blue')
+       .attr('fill', '#942121')
        .attr('r', 6)
 
     svg.selectAll('.circles')
@@ -443,26 +417,25 @@ function ready([datapoints, datapoints_all]) {
     console.log('I am step into changcheng')
 
     svg.selectAll('.relics').style('pointer-events', 'none')
-
     svg.selectAll('.firstbatch')
        .attr('opacity', 0)
-       .attr('cy', height/2)
+       .attr('cy', 0)
        .transition()  
 
-    svg.selectAll('.forbidden-city')
-       .transition() 
-       .attr('opacity', 0)
-       .attr('cy', 0)
-
-
-    svg.selectAll('.yuetan')
+    svg.selectAll('.summer-palace')
        .style('visibility', 'visible')
        .raise()
        .transition()
        .attr('opacity', 1)
        .attr('cy', height/2)
-       .attr('fill', 'blue')
+       .attr('fill', '#942121')
        .attr('r', 6)
+
+
+    svg.selectAll('.forbidden-city')
+       .transition() 
+       .attr('opacity', 0)
+       .attr('cy', 0)
 
     svg.selectAll('.circles')
        .on('mouseover', function (d) {
@@ -476,7 +449,5 @@ function ready([datapoints, datapoints_all]) {
         div.transition().style('opacity', 0)
       })         
    })
-
-
 
   }
